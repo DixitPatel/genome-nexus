@@ -215,7 +215,7 @@ public class AlphaGenomeVariantNormalizerTest
     public void missingReferenceResolverFailsFast()
     {
         AlphaGenomeVariantNormalizer unconfigured =
-            new AlphaGenomeVariantNormalizer(canonicalTranscriptResolver);
+            new AlphaGenomeVariantNormalizer(liftOver, null, canonicalTranscriptResolver);
 
         try {
             unconfigured.normalize(annotation("5", 176940011, 176940011, "C/T", "GRCh37", 1, true, null));

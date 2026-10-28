@@ -69,6 +69,7 @@ public class VariantAnnotation
     private MutationAssessor mutationAssessor;
     private NucleotideContextAnnotation nucleotideContextAnnotation;
     private MyVariantInfoAnnotation myVariantInfoAnnotation;
+    private AlphaGenomeAnnotation alphaGenomeAnnotation;
     private HotspotAnnotation hotspotAnnotation;
     private PtmAnnotation ptmAnnotation;
     private OncokbAnnotation oncokbAnnotation;
@@ -302,6 +303,14 @@ public class VariantAnnotation
 
     public void setMyVariantInfoAnnotation(MyVariantInfoAnnotation myVariantInfoAnnotation) {
         this.myVariantInfoAnnotation = myVariantInfoAnnotation;
+    }
+
+    public AlphaGenomeAnnotation getAlphaGenomeAnnotation() {
+        return alphaGenomeAnnotation;
+    }
+
+    public void setAlphaGenomeAnnotation(AlphaGenomeAnnotation alphaGenomeAnnotation) {
+        this.alphaGenomeAnnotation = alphaGenomeAnnotation;
     }
 
     public HotspotAnnotation getHotspotAnnotation() {

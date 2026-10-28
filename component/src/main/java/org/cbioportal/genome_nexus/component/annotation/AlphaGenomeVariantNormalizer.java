@@ -54,9 +54,10 @@ public class AlphaGenomeVariantNormalizer
     private final CanonicalTranscriptResolver canonicalTranscriptResolver;
 
     @Autowired
-    public AlphaGenomeVariantNormalizer(CanonicalTranscriptResolver canonicalTranscriptResolver)
+    public AlphaGenomeVariantNormalizer(CanonicalTranscriptResolver canonicalTranscriptResolver,
+                                        Grch38ReferenceSequenceResolver referenceResolver)
     {
-        this(loadDefaultLiftOver(), null, canonicalTranscriptResolver);
+        this(loadDefaultLiftOver(), referenceResolver, canonicalTranscriptResolver);
     }
 
     /**
