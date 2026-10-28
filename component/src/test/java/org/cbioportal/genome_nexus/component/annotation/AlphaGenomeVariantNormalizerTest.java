@@ -172,6 +172,45 @@ public class AlphaGenomeVariantNormalizerTest
     }
 
     @Test
+    public void chromosomeXAndYHappyPath()
+    {
+        when(referenceResolver.extract("chrX", 1000000, 1000001)).thenReturn("A");
+        Optional<NormalizedAlphaGenomeVariant> result = normalizer().normalize(annotation(
+            "23", 1000001, 1000001, "A/T", "GRCh38", 1, true, null));
+
+        assertTrue(result.isPresent());
+        assertEquals("chrX", result.get().getChrom());
+        assertEquals(1000001, result.get().getPos());
+        assertEquals("chrX:1000001:A>T", result.get().getVariantStr());
+    }
+
+    @Test
+    public void negativeStrandVariantIsReverseComplementedAndAccepted()
+    {
+        // Query strand -1: C/A -> on strand +1 becomes G/T.
+        when(referenceResolver.extract("chr5", 177513009, 177513010)).thenReturn("G");
+        Optional<NormalizedAlphaGenomeVariant> result = normalizer().normalize(annotation(
+            "5", 177513010, 177513010, "C/A", "GRCh38", -1, true, null));
+
+        assertTrue(result.isPresent());
+        assertEquals("G", result.get().getRef());
+        assertEquals("T", result.get().getAlt());
+        assertEquals("chr5:177513010:G>T", result.get().getVariantStr());
+    }
+
+    @Test
+    public void grch38NativeAssemblyPassesThroughWithoutLiftover()
+    {
+        when(referenceResolver.extract("chr7", 140753335, 140753336)).thenReturn("A");
+        Optional<NormalizedAlphaGenomeVariant> result = normalizer().normalize(annotation(
+            "7", 140753336, 140753336, "A/T", "GRCh38", 1, true, null));
+
+        assertTrue(result.isPresent());
+        assertEquals(140753336, result.get().getPos());
+        assertEquals("chr7:140753336:A>T", result.get().getVariantStr());
+    }
+
+    @Test
     public void missingReferenceResolverFailsFast()
     {
         AlphaGenomeVariantNormalizer unconfigured =
