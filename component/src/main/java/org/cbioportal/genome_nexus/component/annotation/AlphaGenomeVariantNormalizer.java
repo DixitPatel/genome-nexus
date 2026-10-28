@@ -178,10 +178,13 @@ public class AlphaGenomeVariantNormalizer
         else {
             String seedRef = ref.equals("-") ? "" : ref;
             String seedAlt = alt.equals("-") ? "" : alt;
-            // Deletions seed at the first deleted base; insertions seed at
-            // the anchor coordinate Genome Nexus stores (min of start/end).
+            // Deletions seed at the first deleted base. Insertions seed at the
+            // right-flank coordinate (max of start/end): the SDK loop opens by
+            // extending left (position -= 1) whenever an allele is empty, so a
+            // right-flank seed lands the first extension exactly on the true
+            // anchor base. Seeding the left flank would shift one base too far.
             int seedPos = ref.equals("-")
-                ? Math.min(liftedStart, liftedEnd)
+                ? Math.max(liftedStart, liftedEnd)
                 : liftedStart;
             String[] normalizedAlleles = normalizeAlleles(contig, seedPos, seedRef, seedAlt);
             pos = Integer.parseInt(normalizedAlleles[0]);

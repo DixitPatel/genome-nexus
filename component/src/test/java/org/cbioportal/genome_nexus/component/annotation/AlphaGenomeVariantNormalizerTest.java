@@ -117,9 +117,10 @@ public class AlphaGenomeVariantNormalizerTest
 
         assertTrue(result.isPresent());
         assertEquals("chr1", result.get().getChrom());
-        assertEquals(999, result.get().getPos());
-        assertEquals("N", result.get().getRef());
-        assertEquals("NT", result.get().getAlt());
+        assertEquals(1000, result.get().getPos());
+        assertEquals("G", result.get().getRef());
+        assertEquals("GT", result.get().getAlt());
+        assertEquals("chr1:1000:G>GT", result.get().getVariantStr());
         assertEquals("ENSG00000100000", result.get().getGeneId());
     }
 
