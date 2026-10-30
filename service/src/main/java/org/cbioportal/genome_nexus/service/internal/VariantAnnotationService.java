@@ -228,7 +228,7 @@ public class VariantAnnotationService
             }
 
             // add new annotation to index db
-            // if caching is enabled, add to the index DB 
+            // if caching is enabled, add to the index DB
             if (cacheEnabled) {
                 variantAnnotation.ifPresent(annotation -> {
                     this.saveToIndexDb(annotation);
@@ -283,7 +283,7 @@ public class VariantAnnotationService
                 variantAnnotations = this.dbsnpFetcher.fetchAndCache(normalizedVariants);
             }
             for (VariantAnnotation variantAnnotation : variantAnnotations) {
-                // add new annotation to index 
+                // add new annotation to index
                 // For successful VEP responses, match by variantId ("id" field).
                 // For VEP error objects, "id" is absent so variantId is null; fall back to
                 // variant ("input" field) which VEP echoes back as the normalized HGVS string.
@@ -444,7 +444,7 @@ public class VariantAnnotationService
         }
         if (variantType == VariantType.GENOMIC_LOCATION && (id = this.notationConverter.genomicToHgvs(id)) == null) {
             return null;
-        } 
+        }
         return this.notationConverter.hgvsNormalizer(id);
     }
 

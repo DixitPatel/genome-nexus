@@ -100,21 +100,21 @@ public class VariantAnnotationServiceTest
         variantAnnotationService = Mockito.spy(new VariantAnnotationService(
             fetcher,
             idFetcher,
-            cancerHotspotService, 
+            cancerHotspotService,
             mutationAssessorService,
             myVariantInfoService,
             alphaGenomeService,
             null,
-            null, 
-            postTranslationalModificationService, 
-            null, 
-            oncokbService, 
-            null, 
-            indexRepository, 
-            proteinChangeResolver, 
-            hugoGeneSymbolResolver, 
-            notationConverter, 
-            new IsoformAnnotationEnricherFactory(ensemblService, oncokbService, appConfig)    
+            null,
+            postTranslationalModificationService,
+            null,
+            oncokbService,
+            null,
+            indexRepository,
+            proteinChangeResolver,
+            hugoGeneSymbolResolver,
+            notationConverter,
+            new IsoformAnnotationEnricherFactory(ensemblService, oncokbService, appConfig)
         ));
     }
 

@@ -149,10 +149,10 @@ public class AnnotationController
             List<AnnotationField> fields) throws VariantAnnotationNotFoundException, VariantAnnotationQueryMixedFormatException, VariantAnnotationWebServiceException
     {
         return this.verifiedVariantAnnotationService.getAnnotations(
-            variants, 
+            variants,
             VariantType.HGVS,
-            isoformOverrideSource, 
-            tokenMapConverter.convertToMap(token), 
+            isoformOverrideSource,
+            tokenMapConverter.convertToMap(token),
             fields
         );
     }
@@ -176,10 +176,10 @@ public class AnnotationController
             List<AnnotationField> fields) throws VariantAnnotationNotFoundException, VariantAnnotationWebServiceException
     {
         return this.verifiedVariantAnnotationService.getAnnotation(
-            variant, 
+            variant,
             VariantType.HGVS,
-            isoformOverrideSource, 
-            tokenMapConverter.convertToMap(token), 
+            isoformOverrideSource,
+            tokenMapConverter.convertToMap(token),
             fields
         );
     }
@@ -230,10 +230,10 @@ public class AnnotationController
             List<AnnotationField> fields) throws VariantAnnotationNotFoundException, VariantAnnotationWebServiceException
     {
         return this.verifiedVariantAnnotationService.getAnnotation(
-            genomicLocation, 
+            genomicLocation,
             VariantType.GENOMIC_LOCATION,
-            isoformOverrideSource, 
-            tokenMapConverter.convertToMap(token), 
+            isoformOverrideSource,
+            tokenMapConverter.convertToMap(token),
             fields
         );
     }

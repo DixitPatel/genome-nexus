@@ -402,7 +402,7 @@ public class VariantAnnotation
     public void setGenomicLocationExplanation(String genomicLocationExplanation) {
         this.genomicLocationExplanation = genomicLocationExplanation;
     }
-    
+
     public String getErrorMessage() {
         return errorMessage;
     }
