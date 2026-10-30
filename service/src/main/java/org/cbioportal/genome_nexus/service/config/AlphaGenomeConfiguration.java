@@ -3,6 +3,7 @@ package org.cbioportal.genome_nexus.service.config;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.cbioportal.genome_nexus.component.annotation.Grch38ReferenceSequenceResolver;
+import org.cbioportal.genome_nexus.component.annotation.HttpRangeGrch38ReferenceSequenceResolver;
 import org.cbioportal.genome_nexus.component.annotation.IndexedFastaGrch38ReferenceSequenceResolver;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -16,9 +17,10 @@ import java.io.File;
  * mandatory REF check.
  *
  * <p>Set {@code grch38.fasta.path} to a local indexed GRCh38 FASTA (with its
- * {@code .fai} alongside). When unset, a fallback resolver answers every
- * lookup with {@code N}, so every REF comparison safely mismatches and no
- * variant is scored — the application still boots.
+ * {@code .fai} index alongside). Otherwise slices are fetched on demand over
+ * HTTP {@code Range} requests against {@code grch38.fasta.url} plus its
+ * {@code .fai} index ({@code grch38.fasta.fai-url}), defaulting to the GCS
+ * reference the AlphaGenome SDK uses — no multi-gigabyte download required.
  */
 @Configuration
 public class AlphaGenomeConfiguration
@@ -27,7 +29,11 @@ public class AlphaGenomeConfiguration
 
     @Bean
     public Grch38ReferenceSequenceResolver grch38ReferenceSequenceResolver(
-        @Value("${grch38.fasta.path:}") String fastaPath)
+        @Value("${grch38.fasta.path:}") String fastaPath,
+        @Value("${grch38.fasta.url:https://storage.googleapis.com/alphagenome/reference/gencode/hg38/GRCh38.p13.genome.fa}")
+        String fastaUrl,
+        @Value("${grch38.fasta.fai-url:https://storage.googleapis.com/alphagenome/reference/gencode/hg38/GRCh38.p13.genome.fa.fai}")
+        String faiUrl)
     {
         if (fastaPath != null && !fastaPath.trim().isEmpty() && new File(fastaPath).exists()) {
             try {
@@ -37,19 +43,12 @@ public class AlphaGenomeConfiguration
                     "Could not open GRCh38 FASTA at " + fastaPath, e);
             }
         }
-        LOG.warn("grch38.fasta.path is not configured: AlphaGenome normalization "
-            + "will reject every variant until a GRCh38 reference is provided.");
-        return new Grch38ReferenceSequenceResolver()
-        {
-            @Override
-            public String extract(String chrom, int zeroBasedStart, int zeroBasedEndExclusive)
-            {
-                StringBuilder out = new StringBuilder();
-                for (int i = zeroBasedStart; i < zeroBasedEndExclusive; i++) {
-                    out.append('N');
-                }
-                return out.toString();
-            }
-        };
+        LOG.info("Using remote GRCh38 slices from " + fastaUrl);
+        try {
+            return new HttpRangeGrch38ReferenceSequenceResolver(fastaUrl, faiUrl);
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                "Could not load remote GRCh38 index from " + faiUrl, e);
+        }
     }
 }

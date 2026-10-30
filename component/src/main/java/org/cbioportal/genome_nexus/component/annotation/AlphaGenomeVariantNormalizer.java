@@ -5,6 +5,7 @@ import htsjdk.samtools.util.Interval;
 
 import org.cbioportal.genome_nexus.model.TranscriptConsequence;
 import org.cbioportal.genome_nexus.model.VariantAnnotation;
+import org.cbioportal.genome_nexus.util.AlphaGenomePipelineDebugLogger;
 import org.cbioportal.genome_nexus.util.GenomicLocationUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -86,9 +87,31 @@ public class AlphaGenomeVariantNormalizer
     public Optional<NormalizedAlphaGenomeVariant> normalize(VariantAnnotation annotation)
     {
         // ---- Step 1: pre-filter ----
-        if (annotation == null
-            || !Boolean.TRUE.equals(annotation.isSuccessfullyAnnotated())
-            || annotation.getErrorMessage() != null) {
+        if (annotation == null) {
+            AlphaGenomePipelineDebugLogger.log("PHASE 1: PRE-FILTER", "annotation is null -> REJECTED");
+            return Optional.empty();
+        }
+
+        String varId = annotation.getVariant() != null ? annotation.getVariant() : annotation.getOriginalVariantQuery();
+        AlphaGenomePipelineDebugLogger.log("PHASE 1: BEFORE LIFTOVER",
+            String.format("Input variant='%s', query='%s', assembly='%s', chrom='%s', start=%s, end=%s, alleles='%s', strand=%s, successfullyAnnotated=%s, errorMessage='%s'",
+                varId,
+                annotation.getOriginalVariantQuery(),
+                annotation.getAssemblyName(),
+                annotation.getSeqRegionName(),
+                annotation.getStart(),
+                annotation.getEnd(),
+                annotation.getAlleleString(),
+                annotation.getStrand(),
+                annotation.isSuccessfullyAnnotated(),
+                annotation.getErrorMessage()
+            )
+        );
+
+        if (!Boolean.TRUE.equals(annotation.isSuccessfullyAnnotated()) || annotation.getErrorMessage() != null) {
+            AlphaGenomePipelineDebugLogger.log("PHASE 1: PRE-FILTER REJECTED",
+                String.format("Variant '%s' rejected: isSuccessfullyAnnotated=%s, errorMessage='%s'",
+                    varId, annotation.isSuccessfullyAnnotated(), annotation.getErrorMessage()));
             return Optional.empty();
         }
         if (annotation.getSeqRegionName() == null
@@ -96,16 +119,24 @@ public class AlphaGenomeVariantNormalizer
             || annotation.getEnd() == null
             || annotation.getAlleleString() == null
             || annotation.getAlleleString().isEmpty()) {
+            AlphaGenomePipelineDebugLogger.log("PHASE 1: PRE-FILTER REJECTED",
+                String.format("Variant '%s' rejected: null or empty coordinate field", varId));
             return Optional.empty();
         }
 
         String chrom = normalizeChromosome(annotation.getSeqRegionName());
         if (chrom == null) {
+            AlphaGenomePipelineDebugLogger.log("PHASE 1: PRE-FILTER REJECTED",
+                String.format("Variant '%s' rejected: invalid or unmapped chromosome '%s'",
+                    varId, annotation.getSeqRegionName()));
             return Optional.empty();
         }
 
         String[] alleles = annotation.getAlleleString().toUpperCase().split("/", -1);
         if (alleles.length != 2) {
+            AlphaGenomePipelineDebugLogger.log("PHASE 1: PRE-FILTER REJECTED",
+                String.format("Variant '%s' rejected: alleleString '%s' does not have 2 parts",
+                    varId, annotation.getAlleleString()));
             return Optional.empty();
         }
         String ref = alleles[0].trim();
@@ -115,23 +146,40 @@ public class AlphaGenomeVariantNormalizer
             || ref.equals(alt)
             || !ALLELE_PATTERN.matcher(ref).matches()
             || !ALLELE_PATTERN.matcher(alt).matches()) {
+            AlphaGenomePipelineDebugLogger.log("PHASE 1: PRE-FILTER REJECTED",
+                String.format("Variant '%s' rejected: invalid ref='%s' or alt='%s'",
+                    varId, ref, alt));
             return Optional.empty();
         }
 
         if (annotation.getStrand() != null && annotation.getStrand() == -1) {
+            String origRef = ref;
+            String origAlt = alt;
             if (!ref.equals("-")) {
                 ref = GenomicLocationUtil.getReverseStrandAllele(ref);
             }
             if (!alt.equals("-")) {
                 alt = GenomicLocationUtil.getReverseStrandAllele(alt);
             }
+            AlphaGenomePipelineDebugLogger.log("PHASE 1: BEFORE LIFTOVER",
+                String.format("Variant '%s' strand is -1: complemented ref '%s'->'%s', alt '%s'->'%s'",
+                    varId, origRef, ref, origAlt, alt));
         }
+
+        AlphaGenomePipelineDebugLogger.log("PHASE 1: PRE-FILTER PASSED",
+            String.format("Variant '%s' passed pre-filter: contig='chr%s', ref='%s', alt='%s'",
+                varId, chrom, ref, alt));
 
         // ---- Step 2: GRCh37 -> GRCh38 liftover ----
         String assembly = annotation.getAssemblyName();
         boolean isGrch37 = assembly == null || assembly.equalsIgnoreCase("GRCh37");
         boolean isGrch38 = assembly != null && assembly.equalsIgnoreCase("GRCh38");
+        AlphaGenomePipelineDebugLogger.log("PHASE 2: LIFTOVER",
+            String.format("Assembly detected: '%s' (isGrch37=%s, isGrch38=%s)", assembly, isGrch37, isGrch38));
+
         if (!isGrch37 && !isGrch38) {
+            AlphaGenomePipelineDebugLogger.log("PHASE 2: LIFTOVER REJECTED",
+                String.format("Variant '%s' rejected: unsupported assembly '%s'", varId, assembly));
             return Optional.empty();
         }
 
@@ -143,22 +191,38 @@ public class AlphaGenomeVariantNormalizer
             // lift the covered span consistently.
             int low = Math.min(annotation.getStart(), annotation.getEnd());
             int high = Math.max(annotation.getStart(), annotation.getEnd());
+            AlphaGenomePipelineDebugLogger.log("PHASE 2: LIFTOVER",
+                String.format("Attempting htsjdk LiftOver for %s:%d-%d", contig, low, high));
             if (low < 1) {
+                AlphaGenomePipelineDebugLogger.log("PHASE 2: LIFTOVER REJECTED",
+                    String.format("Variant '%s' rejected: low coordinate < 1 (%d)", varId, low));
                 return Optional.empty();
             }
             Interval lifted = liftOver.liftOver(new Interval(contig, low, high));
             if (lifted == null || !contig.equals(lifted.getContig())) {
+                AlphaGenomePipelineDebugLogger.log("PHASE 2: LIFTOVER REJECTED",
+                    String.format("Variant '%s' rejected: liftOver returned %s (contig=%s)",
+                        varId,
+                        lifted == null ? "null" : lifted.toString(),
+                        lifted == null ? "null" : lifted.getContig()));
                 return Optional.empty();
             }
             liftedStart = lifted.getStart();
             liftedEnd = lifted.getEnd();
+            AlphaGenomePipelineDebugLogger.log("PHASE 2: LIFTOVER SUCCESS",
+                String.format("Liftover %s:%d-%d -> %s:%d-%d",
+                    contig, low, high, contig, liftedStart, liftedEnd));
         }
         else {
             liftedStart = annotation.getStart();
             liftedEnd = annotation.getEnd();
+            AlphaGenomePipelineDebugLogger.log("PHASE 2: LIFTOVER",
+                String.format("GRCh38 passthrough without liftover: %s:%d-%d", contig, liftedStart, liftedEnd));
         }
 
         if (referenceResolver == null) {
+            AlphaGenomePipelineDebugLogger.log("PHASE 2: GRCH38 REF CHECK",
+                "Grch38ReferenceSequenceResolver is null! Throwing IllegalStateException.");
             throw new IllegalStateException(
                 "Grch38ReferenceSequenceResolver is not configured");
         }
@@ -175,6 +239,9 @@ public class AlphaGenomeVariantNormalizer
             pos = liftedStart;
             vcfRef = ref;
             vcfAlt = alt;
+            AlphaGenomePipelineDebugLogger.log("PHASE 2: VCF NORMALIZATION",
+                String.format("SNV detected (no indel anchoring needed): pos=%d, vcfRef='%s', vcfAlt='%s'",
+                    pos, vcfRef, vcfAlt));
         }
         else {
             String seedRef = ref.equals("-") ? "" : ref;
@@ -187,19 +254,37 @@ public class AlphaGenomeVariantNormalizer
             int seedPos = ref.equals("-")
                 ? Math.max(liftedStart, liftedEnd)
                 : liftedStart;
+            AlphaGenomePipelineDebugLogger.log("PHASE 2: VCF NORMALIZATION",
+                String.format("Indel detected: seedPos=%d, seedRef='%s', seedAlt='%s' (ref='%s', alt='%s', liftedStart=%d, liftedEnd=%d)",
+                    seedPos, seedRef, seedAlt, ref, alt, liftedStart, liftedEnd));
             String[] normalizedAlleles = normalizeAlleles(contig, seedPos, seedRef, seedAlt);
             pos = Integer.parseInt(normalizedAlleles[0]);
             vcfRef = normalizedAlleles[1];
             vcfAlt = normalizedAlleles[2];
+            AlphaGenomePipelineDebugLogger.log("PHASE 2: VCF NORMALIZATION",
+                String.format("Indel left-aligned & anchored: pos=%d, vcfRef='%s', vcfAlt='%s'",
+                    pos, vcfRef, vcfAlt));
         }
 
         // ---- Step 4: GRCh38 REF check & canonical transcript extraction ----
         // AlphaGenome does not reject wrong REF bases, so W1 must: compare
         // case-insensitively and reject on any mismatch.
+        AlphaGenomePipelineDebugLogger.log("PHASE 2: GRCH38 REF CHECK",
+            String.format("Resolver class: %s. Extracting reference sequence for %s:%d-%d (length=%d)",
+                referenceResolver.getClass().getName(), contig, pos - 1, pos - 1 + vcfRef.length(), vcfRef.length()));
         String expectedRef = referenceResolver.extract(contig, pos - 1, pos - 1 + vcfRef.length());
+        AlphaGenomePipelineDebugLogger.log("PHASE 2: GRCH38 REF CHECK",
+            String.format("Reference comparison at %s:%d -> Expected REF in Reference='%s' vs Variant VCF REF='%s'",
+                contig, pos, expectedRef, vcfRef));
         if (!expectedRef.equalsIgnoreCase(vcfRef)) {
+            AlphaGenomePipelineDebugLogger.log("PHASE 2: GRCH38 REF CHECK REJECTED",
+                String.format("Variant '%s' REJECTED: REF check mismatch! Expected '%s' != Got '%s' at %s:%d",
+                    varId, expectedRef, vcfRef, contig, pos));
             return Optional.empty();
         }
+        AlphaGenomePipelineDebugLogger.log("PHASE 2: GRCH38 REF CHECK PASSED",
+            String.format("Variant '%s' PASSED REF check ('%s' matches reference '%s')",
+                varId, vcfRef, expectedRef));
 
         String geneId = null;
         String geneSymbol = null;
@@ -208,11 +293,23 @@ public class AlphaGenomeVariantNormalizer
             if (canonical != null) {
                 geneId = stripGeneVersion(canonical.getGeneId());
                 geneSymbol = canonical.getGeneSymbol();
+                AlphaGenomePipelineDebugLogger.log("PHASE 2: CANONICAL TRANSCRIPT",
+                    String.format("Canonical transcript found: transcriptId='%s', geneId='%s' (raw='%s'), geneSymbol='%s'",
+                        canonical.getTranscriptId(), geneId, canonical.getGeneId(), geneSymbol));
+            } else {
+                AlphaGenomePipelineDebugLogger.log("PHASE 2: CANONICAL TRANSCRIPT",
+                    String.format("No canonical transcript resolved for variant '%s'", varId));
             }
+        } else {
+            AlphaGenomePipelineDebugLogger.log("PHASE 2: CANONICAL TRANSCRIPT",
+                "canonicalTranscriptResolver is null");
         }
 
-        return Optional.of(
-            new NormalizedAlphaGenomeVariant(contig, pos, vcfRef, vcfAlt, geneId, geneSymbol));
+        NormalizedAlphaGenomeVariant result = new NormalizedAlphaGenomeVariant(contig, pos, vcfRef, vcfAlt, geneId, geneSymbol);
+        AlphaGenomePipelineDebugLogger.log("PHASE 2: NORMALIZATION COMPLETE",
+            String.format("Variant '%s' successfully normalized to: %s (geneId='%s', geneSymbol='%s')",
+                varId, result.getVariantStr(), result.getGeneId(), result.getGeneSymbol()));
+        return Optional.of(result);
     }
 
     /**

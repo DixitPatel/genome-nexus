@@ -11,6 +11,7 @@ import org.cbioportal.genome_nexus.service.cached.CachedAlphaGenomeFetcher;
 import org.cbioportal.genome_nexus.service.exception.AlphaGenomeNotFoundException;
 import org.cbioportal.genome_nexus.service.exception.AlphaGenomeWebServiceException;
 import org.cbioportal.genome_nexus.service.exception.ResourceMappingException;
+import org.cbioportal.genome_nexus.util.AlphaGenomePipelineDebugLogger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
@@ -51,23 +52,50 @@ public class AlphaGenomeServiceImpl implements AlphaGenomeService
         if (annotation == null) {
             return null;
         }
+        String varId = annotation.getVariant() != null ? annotation.getVariant() : annotation.getOriginalVariantQuery();
+        AlphaGenomePipelineDebugLogger.log("PHASE 3: QUERY TO ALPHAGENOME INPUT",
+            String.format("Processing single variant '%s'", varId));
+
         Optional<NormalizedAlphaGenomeVariant> normalized = normalizer.normalize(annotation);
         if (!normalized.isPresent()) {
+            AlphaGenomePipelineDebugLogger.log("PHASE 3: QUERY TO ALPHAGENOME INPUT",
+                String.format("Variant '%s' was rejected or not normalized. Skipping sidecar query.", varId));
             return null;
         }
+        Map<String, Object> body = buildRequestBody(annotation.getVariant(), normalized.get());
+        AlphaGenomePipelineDebugLogger.log("PHASE 3: QUERY TO ALPHAGENOME INPUT",
+            String.format("Variant '%s' normalized. Staging payload for sidecar: %s", varId, body.toString()));
+
         Map<String, Map<String, Object>> bodies = new LinkedHashMap<>();
-        bodies.put(annotation.getVariant(), buildRequestBody(annotation.getVariant(), normalized.get()));
+        bodies.put(annotation.getVariant(), body);
         try {
+            AlphaGenomePipelineDebugLogger.log("PHASE 3: QUERY TO ALPHAGENOME INPUT",
+                String.format("Invoking cachedAlphaGenomeFetcher.fetchAndCache for variant '%s'", varId));
             List<AlphaGenome> results = cachedAlphaGenomeFetcher.fetchAndCache(bodies);
             if (results.isEmpty()) {
+                AlphaGenomePipelineDebugLogger.log("PHASE 5: RESPONSE FROM ALPHAGENOME SIDECAR",
+                    String.format("No AlphaGenome result returned for variant '%s'", varId));
                 throw new AlphaGenomeNotFoundException(annotation.getVariant());
             }
-            return results.get(0);
+            AlphaGenome alphaGenome = results.get(0);
+            AlphaGenomePipelineDebugLogger.log("PHASE 5: RESPONSE FROM ALPHAGENOME SIDECAR",
+                String.format("Successfully resolved AlphaGenome for '%s': hg38='%s', model='%s', scores count=%d, merged splicing=%s",
+                    varId, alphaGenome.getHg38Variant(), alphaGenome.getModelVersion(),
+                    alphaGenome.getScores() != null ? alphaGenome.getScores().size() : 0,
+                    alphaGenome.getMergedSplicingScore()));
+            return alphaGenome;
         } catch (ResourceMappingException e) {
+            AlphaGenomePipelineDebugLogger.log("PHASE 5: RESPONSE ERROR",
+                String.format("ResourceMappingException for '%s': %s", varId, e.getMessage()));
             throw new AlphaGenomeWebServiceException(e.getMessage());
         } catch (HttpClientErrorException e) {
+            AlphaGenomePipelineDebugLogger.log("PHASE 5: RESPONSE ERROR",
+                String.format("HttpClientErrorException for '%s': status=%s, body=%s",
+                    varId, e.getStatusCode(), e.getResponseBodyAsString()));
             throw new AlphaGenomeWebServiceException(e.getResponseBodyAsString(), e.getStatusCode());
         } catch (ResourceAccessException e) {
+            AlphaGenomePipelineDebugLogger.log("PHASE 5: RESPONSE ERROR",
+                String.format("ResourceAccessException for '%s': %s", varId, e.getMessage()));
             throw new AlphaGenomeWebServiceException(e.getMessage());
         }
     }
@@ -81,22 +109,42 @@ public class AlphaGenomeServiceImpl implements AlphaGenomeService
             if (annotation == null) {
                 continue;
             }
+            String varId = annotation.getVariant() != null ? annotation.getVariant() : annotation.getOriginalVariantQuery();
             Optional<NormalizedAlphaGenomeVariant> normalized = normalizer.normalize(annotation);
             if (normalized.isPresent()) {
-                bodies.put(annotation.getVariant(),
-                    buildRequestBody(annotation.getVariant(), normalized.get()));
+                Map<String, Object> body = buildRequestBody(annotation.getVariant(), normalized.get());
+                bodies.put(annotation.getVariant(), body);
+                AlphaGenomePipelineDebugLogger.log("PHASE 3: QUERY TO ALPHAGENOME INPUT",
+                    String.format("Batch item '%s' normalized. Staging payload: %s", varId, body.toString()));
+            } else {
+                AlphaGenomePipelineDebugLogger.log("PHASE 3: QUERY TO ALPHAGENOME INPUT",
+                    String.format("Batch item '%s' rejected during normalization. Not staged for sidecar.", varId));
             }
         }
         if (bodies.isEmpty()) {
+            AlphaGenomePipelineDebugLogger.log("PHASE 3: QUERY TO ALPHAGENOME INPUT",
+                "Batch query: no variants passed normalization. Returning empty list.");
             return Collections.emptyList();
         }
         try {
-            return cachedAlphaGenomeFetcher.fetchAndCache(bodies);
+            AlphaGenomePipelineDebugLogger.log("PHASE 3: QUERY TO ALPHAGENOME INPUT",
+                String.format("Batch query: dispatching %d variants to cachedAlphaGenomeFetcher", bodies.size()));
+            List<AlphaGenome> results = cachedAlphaGenomeFetcher.fetchAndCache(bodies);
+            AlphaGenomePipelineDebugLogger.log("PHASE 5: RESPONSE FROM ALPHAGENOME SIDECAR",
+                String.format("Batch query returned %d AlphaGenome results", results.size()));
+            return results;
         } catch (ResourceMappingException e) {
+            AlphaGenomePipelineDebugLogger.log("PHASE 5: RESPONSE ERROR",
+                String.format("Batch ResourceMappingException: %s", e.getMessage()));
             throw new AlphaGenomeWebServiceException(e.getMessage());
         } catch (HttpClientErrorException e) {
+            AlphaGenomePipelineDebugLogger.log("PHASE 5: RESPONSE ERROR",
+                String.format("Batch HttpClientErrorException: status=%s, body=%s",
+                    e.getStatusCode(), e.getResponseBodyAsString()));
             throw new AlphaGenomeWebServiceException(e.getResponseBodyAsString(), e.getStatusCode());
         } catch (ResourceAccessException e) {
+            AlphaGenomePipelineDebugLogger.log("PHASE 5: RESPONSE ERROR",
+                String.format("Batch ResourceAccessException: %s", e.getMessage()));
             throw new AlphaGenomeWebServiceException(e.getMessage());
         }
     }

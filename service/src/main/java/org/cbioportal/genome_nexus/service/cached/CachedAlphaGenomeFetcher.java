@@ -8,6 +8,7 @@ import org.cbioportal.genome_nexus.persistence.AlphaGenomeRepository;
 import org.cbioportal.genome_nexus.service.exception.ResourceMappingException;
 import org.cbioportal.genome_nexus.service.remote.AlphaGenomeDataFetcher;
 import org.cbioportal.genome_nexus.service.transformer.ExternalResourceTransformer;
+import org.cbioportal.genome_nexus.util.AlphaGenomePipelineDebugLogger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -122,6 +123,9 @@ public class CachedAlphaGenomeFetcher extends BaseCachedExternalResourceFetcher<
                                  boolean saveValues) throws ResourceMappingException
     {
         List<Set<String>> chunks = new ArrayList<>(this.generateChunks(needToFetch));
+        AlphaGenomePipelineDebugLogger.log("PHASE 3: CACHE CHECK",
+            String.format("needToFetch uncached variants: %s (split into %d chunks)", needToFetch, chunks.size()));
+
         List<Future<DBObject>> futures = new ArrayList<>();
         for (Set<String> chunk : chunks) {
             final Set<String> ids = new LinkedHashSet<>(chunk);
@@ -129,6 +133,8 @@ public class CachedAlphaGenomeFetcher extends BaseCachedExternalResourceFetcher<
                 pendingBodies.get() == null
                     ? new LinkedHashMap<>()
                     : new LinkedHashMap<>(pendingBodies.get());
+            AlphaGenomePipelineDebugLogger.log("PHASE 3: DISPATCH TO SIDECAR",
+                String.format("Submitting chunk fetch task for ids=%s, body=%s", ids, bodies.get(ids.iterator().next())));
             Callable<DBObject> task = () -> {
                 pendingBodies.set(bodies);
                 try {
@@ -146,20 +152,32 @@ public class CachedAlphaGenomeFetcher extends BaseCachedExternalResourceFetcher<
             try {
                 rawValue = futures.get(i).get();
             } catch (Exception e) {
+                AlphaGenomePipelineDebugLogger.log("PHASE 5: RESPONSE ERROR",
+                    String.format("AlphaGenome sidecar fetch failed for %s: %s", chunks.get(i), e.getLocalizedMessage()));
                 LOG.error("AlphaGenome sidecar fetch failed for " + chunks.get(i) + ": "
                     + e.getLocalizedMessage());
             }
             if (rawValue == null) {
+                AlphaGenomePipelineDebugLogger.log("PHASE 5: RESPONSE ERROR",
+                    String.format("AlphaGenome rawValue is null for chunk %s", chunks.get(i)));
                 continue;
             }
             try {
+                AlphaGenomePipelineDebugLogger.log("PHASE 5: RESPONSE FROM ALPHAGENOME SIDECAR",
+                    String.format("Raw response for %s: %s", chunks.get(i), rawValue.toString()));
                 rawValue = this.normalizeResponse(rawValue);
                 List<AlphaGenome> fetched = this.transformer.transform(rawValue, this.type);
                 fetched.forEach(t -> idToInstance.put(this.extractId(t), t));
+                AlphaGenomePipelineDebugLogger.log("PHASE 5: RESPONSE TRANSFORMED",
+                    String.format("Transformed %d AlphaGenome instances for chunk %s", fetched.size(), chunks.get(i)));
                 if (saveValues) {
+                    AlphaGenomePipelineDebugLogger.log("PHASE 5: CACHE WRITE",
+                        String.format("Saving %s to MongoDB collection '%s'", chunks.get(i), COLLECTION));
                     this.saveToDb(rawValue);
                 }
             } catch (Exception e) {
+                AlphaGenomePipelineDebugLogger.log("PHASE 5: RESPONSE ERROR",
+                    String.format("AlphaGenome response handling failed for %s: %s", chunks.get(i), e.getLocalizedMessage()));
                 LOG.error("AlphaGenome sidecar response handling failed for " + chunks.get(i)
                     + ": " + e.getLocalizedMessage());
             }
