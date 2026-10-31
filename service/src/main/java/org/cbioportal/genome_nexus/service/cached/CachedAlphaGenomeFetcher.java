@@ -13,6 +13,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.PreDestroy;
+
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -51,7 +53,7 @@ public class CachedAlphaGenomeFetcher extends BaseCachedExternalResourceFetcher<
         AlphaGenomeRepository repository,
         AlphaGenomeDataFetcher fetcher,
         @Value("${alphagenome.sidecar.max_page_size:1}") Integer maxPageSize,
-        @Value("${alphagenome.sidecar.max_concurrency:4}") Integer maxConcurrency
+        @Value("${alphagenome.sidecar.max_concurrency:16}") Integer maxConcurrency
     ) {
         super(COLLECTION, repository, AlphaGenome.class, fetcher, transformer, maxPageSize);
         this.fetchPool = Executors.newFixedThreadPool(
@@ -61,6 +63,13 @@ public class CachedAlphaGenomeFetcher extends BaseCachedExternalResourceFetcher<
                 thread.setDaemon(true);
                 return thread;
             });
+    }
+
+    @PreDestroy
+    public void shutdown() {
+        if (fetchPool != null && !fetchPool.isShutdown()) {
+            fetchPool.shutdown();
+        }
     }
 
     /**
