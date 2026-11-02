@@ -22,17 +22,14 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
- * W1: normalizes a Genome Nexus {@code VariantAnnotation} into GRCh38,
+ * Normalizes a Genome Nexus {@code VariantAnnotation} into GRCh38,
  * AlphaGenome-ready coordinates.
- *
- * <p>Never reads {@code VariantAnnotation.getHgvsg()}: VEP 3'-shifts hgvsg on
- * repetitive indels (e.g. SMAD4 {@code c.1520_1521del}). All coordinates come
- * from {@code seqRegionName}, {@code start}, {@code end}, and
+ * All coordinates come from {@code seqRegionName}, {@code start}, {@code end}, and
  * {@code alleleString}.
  *
  * <p>Step 1 (pre-filter) and Step 2 ({@code GRCh37 -> GRCh38} liftover) run
- * first. Rejected variants return {@code Optional.empty()} and must never be
- * scored or cached. Step 3 ports the {@code alphagenome} SDK
+ * first. Rejected variants return {@code Optional.empty()}
+ * Step 3 ports the {@code alphagenome} SDK
  * {@code normalize_variant} left-alignment (Tan et al. 2015) to convert MAF
  * {@code -} alleles into VCF anchor-base form, and Step 4 verifies
  * {@code REF} against GRCh38 and extracts the canonical gene.
@@ -61,12 +58,6 @@ public class AlphaGenomeVariantNormalizer
         this(loadDefaultLiftOver(), referenceResolver, canonicalTranscriptResolver);
     }
 
-    /**
-     * Package-visible for unit tests: inject a pre-configured liftover,
-     * reference resolver, and canonical transcript resolver. A {@code null}
-     * reference resolver fails fast on any call, since indel anchoring and
-     * the mandatory {@code REF} check cannot run without GRCh38 sequence.
-     */
     AlphaGenomeVariantNormalizer(
         LiftOver liftOver,
         Grch38ReferenceSequenceResolver referenceResolver,
@@ -81,8 +72,7 @@ public class AlphaGenomeVariantNormalizer
     }
 
     /**
-     * Applies pre-filtering and liftover. Returns {@code Optional.empty()}
-     * for any variant that must not reach scoring or caching.
+     * Applies pre-filtering and liftover
      */
     public Optional<NormalizedAlphaGenomeVariant> normalize(VariantAnnotation annotation)
     {
@@ -228,7 +218,7 @@ public class AlphaGenomeVariantNormalizer
         }
 
         // ---- Step 3: VCF indel anchoring & left-alignment ----
-        // Verbatim port of alphagenome genome.normalize_variant (Tan et al.
+        // Port of alphagenome genome.normalize_variant (Tan et al.
         // 2015): MAF "-" becomes the empty allele, SNVs pass through, and
         // every other allele runs the suffix-trim / left-extend / prefix-trim
         // loop against GRCh38 so indels gain a 1-bp anchor base.
@@ -250,7 +240,7 @@ public class AlphaGenomeVariantNormalizer
             // right-flank coordinate (max of start/end): the SDK loop opens by
             // extending left (position -= 1) whenever an allele is empty, so a
             // right-flank seed lands the first extension exactly on the true
-            // anchor base. Seeding the left flank would shift one base too far.
+            // anchor base. Seeding the left flank would shift one base too far
             int seedPos = ref.equals("-")
                 ? Math.max(liftedStart, liftedEnd)
                 : liftedStart;
@@ -266,9 +256,7 @@ public class AlphaGenomeVariantNormalizer
                     pos, vcfRef, vcfAlt));
         }
 
-        // ---- Step 4: GRCh38 REF check & canonical transcript extraction ----
-        // AlphaGenome does not reject wrong REF bases, so W1 must: compare
-        // case-insensitively and reject on any mismatch.
+        // ---- Step 4: GRCh38 REF check & canonical transcript extraction ---- Reject variants whose REF mismatches GRCh38
         AlphaGenomePipelineDebugLogger.log("PHASE 2: GRCH38 REF CHECK",
             String.format("Resolver class: %s. Extracting reference sequence for %s:%d-%d (length=%d)",
                 referenceResolver.getClass().getName(), contig, pos - 1, pos - 1 + vcfRef.length(), vcfRef.length()));
@@ -357,7 +345,7 @@ public class AlphaGenomeVariantNormalizer
         };
     }
 
-    /** Mirrors the SDK {@code _prefix_length} helper (stops at shortest input). */
+    /** Mirrors the SDK {@code _prefix_length} helper (stops at shortest input) */
     private static int commonPrefixLength(String first, String second, String third)
     {
         String[] inputs = new String[]{first, second, third};
@@ -376,7 +364,7 @@ public class AlphaGenomeVariantNormalizer
         return new StringBuilder(value).reverse().toString();
     }
 
-    /** Strips any Ensembl version suffix (e.g. {@code ENSG....5} -> {@code ENSG...}). */
+    /** Drops Ensembl version suffix from gene IDs */
     private static String stripGeneVersion(String geneId)
     {
         if (geneId == null) {
@@ -386,11 +374,7 @@ public class AlphaGenomeVariantNormalizer
         return dot == -1 ? geneId : geneId.substring(0, dot);
     }
 
-    /**
-     * Inverse of {@code NotationConverter.chromosomeNormalizer} plus AlphaGenome
-     * gating: strips any {@code chr} prefix, maps {@code 23 -> X} and
-     * {@code 24 -> Y}, and rejects mitochondrial / unknown contigs.
-     */
+    /** Normalizes contigs to 1-22/X/Y; rejects others */
     private static String normalizeChromosome(String seqRegionName)
     {
         String chrom = seqRegionName.trim();
@@ -414,10 +398,7 @@ public class AlphaGenomeVariantNormalizer
     }
 
     /**
-     * Loads the bundled chain file. Package-visible so tests exercise the
-     * exact production loading path. The stream is staged to a temp file
-     * because the file-backed htsjdk constructor (verified against the
-     * gzipped chain) is used rather than the text-stream variant.
+     * Loads the bundled chain file
      */
     static LiftOver loadDefaultLiftOver()
     {

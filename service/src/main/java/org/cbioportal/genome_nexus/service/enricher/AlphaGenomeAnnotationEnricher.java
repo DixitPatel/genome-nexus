@@ -20,7 +20,7 @@ public class AlphaGenomeAnnotationEnricher extends BaseAnnotationEnricher
     private static final Log LOG = LogFactory.getLog(AlphaGenomeAnnotationEnricher.class);
 
     /**
-     * Provenance of the annotation payload: the model and SDK it was scored with.
+     * AlphaGenome model/SDK provenance URL
      */
     public static final String LICENSE = "https://github.com/google-deepmind/alphagenome";
 

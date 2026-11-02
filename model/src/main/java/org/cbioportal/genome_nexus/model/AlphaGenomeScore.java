@@ -4,10 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.springframework.data.mongodb.core.mapping.Field;
 
-/**
- * W3: one gene-filtered scorer x track row from {@code tidy_scores}, matching
- * the {@code scores[]} entries of the {@code alpha_genome} JSON contract.
- */
+/** One gene-filtered scorer-by-track score row */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class AlphaGenomeScore
 {

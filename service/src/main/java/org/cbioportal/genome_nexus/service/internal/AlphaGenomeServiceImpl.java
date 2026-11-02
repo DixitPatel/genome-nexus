@@ -24,11 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-/**
- * W3: resolves the cached AlphaGenome annotation for Genome Nexus
- * annotations. Normalization (W1) runs first; variants that fail it return
- * {@code null} and are never scored or cached.
- */
+/** Normalizes, then returns cached AlphaGenome annotation */
 @Service
 public class AlphaGenomeServiceImpl implements AlphaGenomeService
 {

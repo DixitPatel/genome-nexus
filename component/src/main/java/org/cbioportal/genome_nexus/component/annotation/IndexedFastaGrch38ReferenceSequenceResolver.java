@@ -6,12 +6,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.nio.file.Path;
 
-/**
- * W1: production {@link Grch38ReferenceSequenceResolver} backed by a local
- * indexed GRCh38 FASTA (requires the {@code .fai} index next to the file).
- * Wired by the enricher (W3); constructed here with an explicit path so no
- * configuration is read at class-load time.
- */
+/** Local indexed-FASTA GRCh38 resolver */
 public class IndexedFastaGrch38ReferenceSequenceResolver implements Grch38ReferenceSequenceResolver
 {
     private final IndexedFastaSequenceFile fasta;
@@ -32,7 +27,7 @@ public class IndexedFastaGrch38ReferenceSequenceResolver implements Grch38Refere
         if (zeroBasedEndExclusive <= zeroBasedStart) {
             return "";
         }
-        // Mirror the SDK FastaExtractor: pad leading out-of-range bases with N.
+        // Mirror the SDK FastaExtractor: pad leading out-of-range bases with N
         String prefix = "";
         if (zeroBasedStart < 0) {
             StringBuilder pad = new StringBuilder();
@@ -42,7 +37,7 @@ public class IndexedFastaGrch38ReferenceSequenceResolver implements Grch38Refere
             prefix = pad.toString();
             zeroBasedStart = 0;
         }
-        // getSubsequenceAt takes 1-based inclusive coordinates.
+        // htsjdk takes 1-based inclusive coordinates
         return prefix
             + fasta.getSubsequenceAt(chrom, zeroBasedStart + 1, zeroBasedEndExclusive)
                 .getBaseString()

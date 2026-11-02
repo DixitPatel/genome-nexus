@@ -1,13 +1,13 @@
 package org.cbioportal.genome_nexus.component.annotation;
 
 /**
- * W1: abstraction over the GRCh38 reference sequence used for indel
- * anchoring / left-alignment and the mandatory {@code REF} check.
+ * Abstraction over the GRCh38 reference sequence used for indel
+ * anchoring / left-alignment and {@code REF} check.
  *
  * <p>Coordinates are 0-based, half-open ({@code [start, end)}), matching the
  * {@code alphagenome} SDK {@code Interval} / {@code FastaExtractor.extract}
  * convention that {@code AlphaGenomeVariantNormalizer} ports. Contigs carry
- * the {@code chr} prefix (e.g. {@code chr5}).
+ * the {@code chr} prefix (e.g. {@code chr5})
  */
 public interface Grch38ReferenceSequenceResolver
 {

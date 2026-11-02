@@ -9,10 +9,8 @@ import org.springframework.data.mongodb.core.mapping.Field;
 import java.util.List;
 
 /**
- * W3: AlphaGenome annotation for one normalized GRCh38 variant and its
- * canonical gene, mirroring the sidecar {@code alpha_genome} JSON contract.
- * There is no literature surface: rejected variants never reach scoring, and
- * the sidecar returns no literature payload.
+ * AlphaGenome annotation for one normalized GRCh38 variant and its
+ * canonical gene
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 @Document(collection = "alphagenome.annotation")

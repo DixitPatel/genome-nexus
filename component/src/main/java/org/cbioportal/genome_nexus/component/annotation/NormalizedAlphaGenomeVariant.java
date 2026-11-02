@@ -5,7 +5,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Objects;
 
 /**
- * W1: normalized, AlphaGenome-ready view of a {@code VariantAnnotation}.
+ * Normalized AlphaGenome-ready view of a {@code VariantAnnotation};
  *
  * <p>Holds GRCh38 coordinates with a {@code chr} prefix and VCF-style alleles
  * ({@code pos}, {@code ref}, {@code alt} where indels carry a 1-bp anchor base
@@ -47,45 +47,45 @@ public class NormalizedAlphaGenomeVariant
         this.variantStr = String.format("%s:%d:%s>%s", chrom, pos, ref, alt);
     }
 
-    /** GRCh38 contig with {@code chr} prefix (e.g. {@code chr5}). */
+    /** GRCh38 contig with {@code chr} prefix (e.g. {@code chr5}) */
     public String getChrom()
     {
         return chrom;
     }
 
-    /** GRCh38 1-based position (anchor-base position for indels). */
+    /** GRCh38 1-based position (anchor-base position for indels) */
     public int getPos()
     {
         return pos;
     }
 
-    /** VCF-style reference allele (includes anchor base for indels). */
+    /** VCF-style reference allele (includes anchor base for indels) */
     public String getRef()
     {
         return ref;
     }
 
-    /** VCF-style alternate allele (includes anchor base for indels). */
+    /** VCF-style alternate allele (includes anchor base for indels) */
     public String getAlt()
     {
         return alt;
     }
 
-    /** Canonical gene id (e.g. {@code ENSG00000157764}), {@code null} until W1.4. */
+    /** Canonical gene ID, null if unavailable */
     @Nullable
     public String getGeneId()
     {
         return geneId;
     }
 
-    /** Canonical gene symbol (e.g. {@code BRAF}), {@code null} until W1.4. */
+    /** Canonical gene symbol, null if unavailable */
     @Nullable
     public String getGeneSymbol()
     {
         return geneSymbol;
     }
 
-    /** Rendered {@code chr:pos:REF>ALT} string (e.g. {@code chr5:177513010:C>T}). */
+    /** Rendered {@code chr:pos:REF>ALT} string (e.g. {@code chr5:177513010:C>T}) */
     public String getVariantStr()
     {
         return variantStr;

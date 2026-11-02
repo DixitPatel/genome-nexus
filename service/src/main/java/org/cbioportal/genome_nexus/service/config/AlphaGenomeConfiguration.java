@@ -11,17 +11,7 @@ import org.springframework.context.annotation.Configuration;
 
 import java.io.File;
 
-/**
- * W3: exposes the GRCh38 reference sequence resolver that
- * {@code AlphaGenomeVariantNormalizer} needs for indel anchoring and the
- * mandatory REF check.
- *
- * <p>Set {@code grch38.fasta.path} to a local indexed GRCh38 FASTA (with its
- * {@code .fai} index alongside). Otherwise slices are fetched on demand over
- * HTTP {@code Range} requests against {@code grch38.fasta.url} plus its
- * {@code .fai} index ({@code grch38.fasta.fai-url}), defaulting to the GCS
- * reference the AlphaGenome SDK uses — no multi-gigabyte download required.
- */
+/** Selects local-FASTA or remote-slice GRCh38 resolver */
 @Configuration
 public class AlphaGenomeConfiguration
 {

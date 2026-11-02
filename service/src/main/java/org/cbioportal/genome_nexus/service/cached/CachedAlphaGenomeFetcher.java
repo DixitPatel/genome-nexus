@@ -26,16 +26,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-/**
- * W3: cached sidecar fetcher. One variant per sidecar call
- * ({@code max_page_size = 1}); uncached chunks are fetched concurrently
- * through a bounded pool instead of the base class sequential loop.
- *
- * <p>Sidecar request bodies carry normalized coordinates that are not part of
- * the cache id, so callers stage them per call via
- * {@link #fetchAndCache(Map)}; {@code buildRequestBody} resolves them from a
- * thread-local. {@code _id} is always the echoed Genome Nexus variant string.
- */
+/** One variant per call; concurrent pool backed by cache */
 @Component
 public class CachedAlphaGenomeFetcher extends BaseCachedExternalResourceFetcher<AlphaGenome, AlphaGenomeRepository>
 {
@@ -76,7 +67,7 @@ public class CachedAlphaGenomeFetcher extends BaseCachedExternalResourceFetcher<
      * Fetches the given variants, using the staged sidecar request body for
      * each cache miss. The key of each entry is the Genome Nexus variant id
      * (also the MongoDB {@code _id}); the value is the {@code POST /score}
-     * JSON body built from the normalized GRCh38 variant and canonical gene.
+     * JSON body built from the normalized GRCh38 variant and canonical gene
      */
     public List<AlphaGenome> fetchAndCache(Map<String, Map<String, Object>> requestBodies)
         throws ResourceMappingException
@@ -121,11 +112,7 @@ public class CachedAlphaGenomeFetcher extends BaseCachedExternalResourceFetcher<
         return variant == null ? (String) dbObject.get("_id") : variant.toString();
     }
 
-    /**
-     * Bounded-pool replacement for the base class sequential chunk loop.
-     * HTTP fetches run concurrently; normalization, transformation, and cache
-     * writes stay sequential in chunk order, exactly like the base class.
-     */
+    /** Variants are fetched concurrently and written sequentially */
     @Override
     protected void fetchAndCache(Set<String> needToFetch,
                                  Map<String, AlphaGenome> idToInstance,

@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * W3: POSTs one normalized variant per call to the AlphaGenome sidecar
+ * POSTs one normalized variant per call to the AlphaGenome sidecar
  * ({@code POST /score}) and reads back the single {@code alpha_genome} JSON
  * object. Unlike the batched MyVariantInfo fetcher, the sidecar takes a
  * single JSON body and returns a single JSON object.
