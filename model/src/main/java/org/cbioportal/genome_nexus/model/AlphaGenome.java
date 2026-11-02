@@ -24,6 +24,7 @@ public class AlphaGenome
     private String canonicalGeneId;
     private String canonicalGene;
     private Double mergedSplicingScore;
+    private String scoreLevel;
     private List<AlphaGenomeScore> scores;
 
     public String getVariant()
@@ -106,6 +107,18 @@ public class AlphaGenome
     public void setMergedSplicingScore(Double mergedSplicingScore)
     {
         this.mergedSplicingScore = mergedSplicingScore;
+    }
+
+    @Field(value = "score_level")
+    @JsonProperty(value = "score_level")
+    public String getScoreLevel()
+    {
+        return scoreLevel;
+    }
+
+    public void setScoreLevel(String scoreLevel)
+    {
+        this.scoreLevel = scoreLevel;
     }
 
     @Field(value = "scores")
